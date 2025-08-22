@@ -1,6 +1,9 @@
 import xml.etree.ElementTree as ET
 from pprint import pprint
 import pydot
+import re
+import sys
+
 # part of the code is taken from https://github.com/cole-st-john/yEdExtended/blob/master/src/yedextended/__init__.py
 
 
@@ -13,6 +16,16 @@ NS = {
     "y":"http://www.yworks.com/xml/graphml" ,
     "yed":"http://www.yworks.com/xml/yed/3" ,
 }
+
+def check_color(color):
+	if not (type(color) is str and re.match(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$',color)):
+		print(f"type of color may not match: '{color}'",file=sys.stdout)
+	return color
+def add_style(where,item):
+	if 'style' not in where:
+		where['style'] = item
+	else:
+		where['style'] += (','+item)
 
 def pydot_from_graphml(graph_str):
 	'graph_str - filename or xml(graphml) string'
@@ -83,10 +96,11 @@ def pydot_from_graphml(graph_str):
 							# TODO: PORT REST OF NODELABEL
 
 						# <Fill color="#FFCC00" transparent="false" />
-						#fill = info_node.find("y:Fill",NS)
-						#if fill is not None:
-						#	node_init_dict["shape_fill"] = fill.get("color")
-						#	node_init_dict["transparent"] = fill.get("transparent")
+						fill = info_node.find("y:Fill",NS)
+						if fill is not None:
+							node_init_dict["fillcolor"] = check_color(fill.get("color"))
+							add_style(node_init_dict,'filled')
+							#node_init_dict["transparent"] = fill.get("transparent")
 
 						# <BorderStyle color="#000000" type="line" width="1.0" />
 						#border_style = info_node.find("y:BorderStyle",NS)
@@ -124,7 +138,7 @@ def pydot_from_graphml(graph_str):
 			edge_init_dict = dict()
 
 			# <node id="n1">
-			#edge_id = edge_node.attrib.get("id", None) # todo multigraph
+			edge_init_dict['id'] = edge_node.attrib.get("id", None)
 			source = edge_node.get("source")
 			target = edge_node.get("target")
 
@@ -142,9 +156,9 @@ def pydot_from_graphml(graph_str):
 					#   edge_init_dict["label"] = path_node.attrib.get("tx")
 					#   edge_init_dict["label"] = path_node.attrib.get("ty")
 
-					#linestyle_node = polylineedge.find("y:LineStyle",NS)
-					#if linestyle_node is not None:
-					#	edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
+					linestyle_node = polylineedge.find("y:LineStyle",NS)
+					if linestyle_node is not None:
+						edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
 					#	edge_init_dict["line_type"] = linestyle_node.attrib.get("type", None)
 					#	edge_init_dict["width"] = linestyle_node.attrib.get("width", None)
 
@@ -258,7 +272,9 @@ def pydot_to_graphml(G,filename=None):
 			ET.SubElement(shape, "y:Geometry", x=x, y=str(-float(y)))
 		# <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
 
-		#ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
+		if (color:=node.get("fillcolor")) and node.get('style') and 'filled' in node.get('style'):
+			ET.SubElement(shape, "y:Fill", color=check_color(color))
+		#, transparent=self.transparent)
 
 		#ET.SubElement(
 		#    shape,
@@ -317,7 +333,7 @@ def pydot_to_graphml(G,filename=None):
 
 		xml_edge = ET.Element(
 			"edge",
-			#id=str(self.id),
+			id=str(edge.get('id')),
 			source=str(edge.get_source()),
 			target=str(edge.get_destination()),
 		)
@@ -327,7 +343,8 @@ def pydot_to_graphml(G,filename=None):
 
 		ET.SubElement(pl, "y:Arrows", source="none", target="standard") # check graph/digraph
 					  #source=self.arrowfoot, target=self.arrowhead)
-		#ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
+		ET.SubElement(pl, "y:LineStyle", color=check_color(edge.get('color')))
+			#, type=self.line_type, width=self.width)
 
 		#for label in self.list_of_labels:
 		#	label.addSubElement(pl)
