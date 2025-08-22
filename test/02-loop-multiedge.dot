@@ -1,0 +1,10 @@
+digraph G {
+n0 [pos="375.0,-195.0!", label=1];
+n1 [pos="525.0,-195.0!", label=2];
+n2 [pos="525.0,-315.0!", label=3];
+n3 [pos="375.0,-315.0!", label=4];
+n0 -> n1 [label=L1];
+n0 -> n2 [label=L3];
+n0 -> n2 [label=L2];
+n0 -> n0 [label=L0];
+}
