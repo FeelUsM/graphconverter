@@ -1,8 +1,8 @@
 digraph "G" {
-n0 [pos="375.0,-195.0!", label=1, fillcolor="#FFCC00", style=filled];
-n1 [pos="525.0,-195.0!", label=2, fillcolor="#FF000096", style=filled];
-n2 [pos="525.0,-315.0!", label=3, fillcolor="#FFCC00", style=filled];
-n3 [pos="375.0,-315.0!", label=4, fillcolor="#00FF00", style=filled];
+n0 [pos="375.0,-195.0!", label=1, fillcolor="#FFCC00", style=filled, shape=box];
+n1 [pos="525.0,-195.0!", label=2, fillcolor="#FF000096", style=filled, shape=box];
+n2 [pos="525.0,-315.0!", label=3, fillcolor="#FFCC00", style=filled, shape=box];
+n3 [pos="375.0,-315.0!", label=4, fillcolor="#00FF00", style=filled, shape=box];
 n0 -> n1 [key=0, id=e0, color="#000000", label=L1];
 n0 -> n2 [key=0, id=e1, color="#0000FF"];
 }

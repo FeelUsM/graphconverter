@@ -17,6 +17,74 @@ NS = {
     "yed":"http://www.yworks.com/xml/yed/3" ,
 }
 
+SHAPE_GRAPHML2DOT = {
+'rectangle':'box',
+'rectangle3d':'box3d',
+'diamond':'diamond',
+'ellipse':'ellipse',
+'hexagon':'hexagon',
+'octagon':'octagon',
+'parallelogram':'parallelogram',
+'star5':'star',
+'star6':'star',
+'star8':'star',
+'trapezoid':'trapezium',
+'trapezoid2':'invtrapezium',
+'triangle':'triangle',
+'triangle2':'invtriangle',
+'com.yworks.flowchart.start1':'ellipse',
+'com.yworks.flowchart.start2':'circle',
+'com.yworks.flowchart.terminator':'ellipse',
+'com.yworks.flowchart.decision':'diamond',
+'com.yworks.flowchart.sequentialData':'circle',
+'com.yworks.flowchart.dataBase':'cylinder',
+'com.yworks.flowchart.onPageReference':'circle',
+'com.yworks.flowchart.offPageReference':'invhouse',
+'com.yworks.flowchart.userMessage':'cds',
+'com.yworks.sbgn.UnspecifiedEntity':'ellipse',
+'com.yworks.sbgn.EmptySet':'circle',
+}
+SHAPE_DOT2GRAPHML = {
+'box':'rectangle',
+'ellipse':'ellipse',
+'oval':'ellipse',
+'circle':'circle',
+'point':'circle',
+'egg':'circle',
+'triangle':'triangle',
+'diamond':'diamond',
+'trapezium':'trapezoid',
+'parallelogram':'parallelogram',
+'hexagon':'hexagon',
+'doublecircle':'circle',
+'doubleoctagon':'circle',
+'tripleoctagon':'circle',
+'invtriangle':'triangle2',
+'invtrapezium':'trapezoid2',
+'invhouse':'com.yworks.flowchart.offPageReference',
+'Mdiamond':'diamond',
+'Mcircle':'circle',
+'rect':'rectangle',
+'rectangle':'rectangle',
+'square':'rectangle',
+'star':'star5',
+'cylinder':'com.yworks.flowchart.dataBase',
+'box3d':'rectangle3d',
+'cds':'com.yworks.flowchart.userMessage',
+}
+def	shape_graphml2dot(type):
+	if type in SHAPE_GRAPHML2DOT:
+		return SHAPE_GRAPHML2DOT[type]
+	else:
+		print(f"non standard shape type: {type}",file=sys.stderr)
+		return 'box'
+def	shape_dot2graphml(type):
+	if type in SHAPE_DOT2GRAPHML:
+		return SHAPE_DOT2GRAPHML[type]
+	else:
+		print(f"non standard shape type: {type}",file=sys.stderr)
+		return 'box'
+
 def check_color(color):
 	if not (type(color) is str and re.match(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$',color)):
 		print(f"type of color may not match: '{color}'",file=sys.stdout)
@@ -34,23 +102,33 @@ def pydot_from_graphml(graph_str):
 	        graph_str = graph_file.read()
 	root = ET.fromstring(graph_str)
 
-	#all_keys = root.findall("graphml:key",NS)
-	#key_dict = dict()
-	#for a_key in all_keys:
-	#	sub_key_dict = dict()
-	#	key_id = a_key.attrib.get("id")
-	#	# sub_key_dict["label"] = a_key.attrib.get("for")
-	#	sub_key_dict["attr"] = a_key.attrib.get("attr.name", None)
-	#	# sub_key_dict["label"] = a_key.attrib.get("type")
-	#	key_dict[key_id] = sub_key_dict
-	#print("key_dict:")
-	#pprint(key_dict)
+	all_keys = root.findall("graphml:key",NS)
+	key_dict = dict()
+	for a_key in all_keys:
+		sub_key_dict = dict()
+		key_id = a_key.attrib.get("id")
+		for_ = a_key.get("for")
+		attr = a_key.get("attr.name", None) or a_key.get("yfiles.type", None)
+		key_dict[for_+'-'+attr] = key_id
+	# 'graph-Description': 'd0',
+	# 'port-portgraphics': 'd1',
+	# 'port-portgeometry': 'd2',
+	# 'port-portuserdata': 'd3',
+	# 'node-url': 'd4',
+	# 'node-description': 'd5',
+	# 'node-nodegraphics': 'd6',
+	# 'graphml-resources': 'd7',
+	# 'edge-url': 'd8',
+	# 'edge-description': 'd9',
+	# 'edge-edgegraphics': 'd10',
 
 	## Get major graph node
 	graph_root = root.find("graphml:graph",NS)
 	## get major graph info
-	assert graph_root.get("edgedefault")=="directed"
-	assert graph_root.get("id")=="G"
+	if (tmp:=graph_root.get("edgedefault"))!="directed":
+		print(f"unexpected graph-edgedeafult value: {tmp}",file=sys.stderr)
+	if (tmp:=graph_root.get("id"))!="G":
+		print(f"unexpected graph-id value: {tmp}",file=sys.stderr)
 
 	# instantiate graph object
 	new_graph = pydot.Dot(graph_type="digraph")
@@ -78,9 +156,10 @@ def pydot_from_graphml(graph_str):
 				data_nodes = node.findall("graphml:data",NS)
 				info_node = None
 				for data_node in data_nodes:
-					info_node = data_node.find("y:GenericNode",NS) or data_node.find("y:ShapeNode",NS)
-					if info_node is not None:
-						#node_init_dict["node_type"] = info_node.tag
+					if data_node.get('key')==key_dict['node-nodegraphics']:
+						assert len(data_node)==1
+
+						info_node = next(iter(data_node))#data_node.find("y:GenericNode",NS) or data_node.find("y:ShapeNode",NS)
 
 						# Geometry information
 						node_geom = info_node.find("y:Geometry",NS)
@@ -102,17 +181,25 @@ def pydot_from_graphml(graph_str):
 							add_style(node_init_dict,'filled')
 							#node_init_dict["transparent"] = fill.get("transparent")
 
+						# <Shape type="rectangle" />
+						if info_node.tag.endswith('ShapeNode'):
+							shape_sub = info_node.find("y:Shape",NS)
+							shape_type = 'ShapeNode'
+							if shape_sub is not None:
+								shape_type = shape_sub.get("type",'')
+						elif info_node.tag.endswith('GenericNode'):
+							shape_type = info_node.get("configuration",'GenericNode')
+						else:
+							print(f"unknown node tag: {info_node.tag.split('}')[-1] if '}' in info_node.tag else info_node.tag}",file=sys.stderr)
+							shape_type = 'rectangle'
+						node_init_dict["shape"] = shape_graphml2dot(shape_type)
+
 						# <BorderStyle color="#000000" type="line" width="1.0" />
 						#border_style = info_node.find("y:BorderStyle",NS)
 						#if border_style is not None:
 						#	node_init_dict["border_color"] = border_style.get("color")
 						#	node_init_dict["border_type"] = border_style.get("type")
 						#	node_init_dict["border_width"] = border_style.get("width")
-
-						# <Shape type="rectangle" />
-						#shape_sub = info_node.find("y:Shape",NS)
-						#if shape_sub is not None:
-						#	node_init_dict["shape"] = shape_sub.get("type")
 
 						#uml = info_node.find("y:UML",NS)
 						#if uml is not None:
@@ -265,7 +352,12 @@ def pydot_to_graphml(G,filename=None):
 
 		xml_node = ET.Element("node", id=node.get_name())
 		data = ET.SubElement(xml_node, "data", key="data_node")
-		shape = ET.SubElement(data, "y:ShapeNode") # ... GenericNode
+		shape_type = shape_dot2graphml(node.get('shape'))
+		if shape_type.startswith('com.yworks'):
+			shape = ET.SubElement(data, "y:GenericNode", configuration=shape_type)
+		else:
+			shape = ET.SubElement(data, "y:ShapeNode")
+			ET.SubElement(shape, 'y:Shape', type=shape_type)
 
 		if pos:=node.get("pos"):
 			x,y = pos.replace('"','').replace('!','').split(',')
