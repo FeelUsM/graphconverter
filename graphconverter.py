@@ -3,9 +3,9 @@ from pprint import pprint
 import pydot
 import re
 import sys
+from pyvis.network import Network
 
 # part of the code is taken from https://github.com/cole-st-john/yEdExtended/blob/master/src/yedextended/__init__.py
-
 
 NS = {
     "graphml":"http://graphml.graphdrawing.org/xmlns" ,
@@ -16,6 +16,20 @@ NS = {
     "y":"http://www.yworks.com/xml/graphml" ,
     "yed":"http://www.yworks.com/xml/yed/3" ,
 }
+
+def check_color(color):
+	if color is not None and not (type(color) is str and re.match(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$',color)):
+		print(f"type of color may not match: '{color}'",file=sys.stdout)
+	return color
+def add_style(where,item):
+	if 'style' not in where:
+		where['style'] = item
+	else:
+		where['style'] += (','+item)
+def default(x,y):
+	return x if x is not None else y
+
+# --------------------------------
 
 SHAPE_GRAPHML2DOT = {
 'rectangle':'box',
@@ -84,16 +98,97 @@ def	shape_dot2graphml(type):
 	else:
 		print(f"non standard shape type: {type}",file=sys.stderr)
 		return 'box'
-
-def check_color(color):
-	if not (type(color) is str and re.match(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$',color)):
-		print(f"type of color may not match: '{color}'",file=sys.stdout)
-	return color
-def add_style(where,item):
-	if 'style' not in where:
-		where['style'] = item
+def read_shape(node_init_dict,info_node):
+	if info_node.tag.endswith('ShapeNode'):
+		shape_sub = info_node.find("y:Shape",NS)
+		shape_type = 'ShapeNode'
+		if shape_sub is not None:
+			shape_type = shape_sub.get("type",'')
+	elif info_node.tag.endswith('GenericNode'):
+		shape_type = info_node.get("configuration",'GenericNode')
 	else:
-		where['style'] += (','+item)
+		print(f"unknown node tag: {info_node.tag.split('}')[-1] if '}' in info_node.tag else info_node.tag}",file=sys.stderr)
+		shape_type = 'rectangle'
+	node_init_dict["shape"] = shape_graphml2dot(shape_type)
+def write_shape(data,node):
+	shape_type = shape_dot2graphml(node.get('shape'))
+	if shape_type.startswith('com.yworks'):
+		shape = ET.SubElement(data, "y:GenericNode", configuration=shape_type)
+	else:
+		shape = ET.SubElement(data, "y:ShapeNode")
+		ET.SubElement(shape, 'y:Shape', type=shape_type)
+	return shape
+
+# --------------------------------
+
+DPI = 96 # dots per inch
+PPI = 72 # points per inch
+def read_geom(node_init_dict, info_node):
+	node_geom = info_node.find("y:Geometry",NS)
+	if node_geom is not None:
+		# print(f"{node_geom.tag = }, {node_geom.get("x") =} {node_geom.get("y") =} ")
+		x = float(node_geom.get('x'))
+		y = -float(node_geom.get('y'))
+		w = float(node_geom.get('width'))
+		h = float(node_geom.get('height'))
+		node_init_dict['pos'] = str((x+w/2)/DPI*PPI)+','+str((y-h/2)/DPI*PPI)+'!'
+		node_init_dict['height'] = str(h/DPI)
+		node_init_dict['width'] = str(w/DPI)
+def write_geom(shape,node):
+	if pos:=node.get("pos"):
+		x,y = pos.replace('"','').replace('!','').split(',')
+	height = node.get('height')
+	width  = node.get('width')
+	geom = None
+	if pos is not None or height is not None or width is not None:
+		geom = ET.SubElement(shape, "y:Geometry")
+		if height is not None: 
+			geom.attrib['height'] = str(h:=(float(height)*DPI))
+		else: h=0.3
+		if width  is not None: 
+			geom.attrib['width']  = str(w:=(float(width))*DPI)
+		else: w = 0.5
+		if pos is not None:
+			geom.attrib['x'] = str(float(x)/PPI*DPI-w/2)
+			geom.attrib['y'] = str(-float(y)/PPI*DPI-h/2)
+	return geom
+
+# --------------------------------
+
+def read_label(node_init_dict,node_label): # todo: many labels
+	if node_label is not None:
+		node_init_dict["label"] = node_label.text
+		node_init_dict["fontsize"] = str(float(node_label.get('fontSize',12))/DPI*PPI)
+		node_init_dict["fontname"] = node_label.get('fontFamily','')
+		fontStyle = node_label.get('fontStyle')
+		if fontStyle is not None and fontStyle!='plain':
+			node_init_dict["fontname"] += (' ' + ('bold italic' if fontStyle=='bolditalic' else fontStyle))
+		node_init_dict["fontcolor"] = check_color(node_label.get('textColor'))
+def write_label(shape, node, tagname):
+	if label_text:=node.get("label"):
+		NodeLabel = ET.SubElement(shape, tagname,
+			fontSize = str(int(float(default(node.get('fontsize'),14))/PPI*DPI))
+		)
+		NodeLabel.text = label_text
+		if fontname:=node.get('fontname'):
+			if fontname.endswith('bold italic'):
+				fontStyle = 'bolditalic'
+				fontname = fontname[:-len(' bold italic')]
+			elif fontname.endswith('italic'):
+				fontStyle = 'italic'
+				fontname = fontname[:-len(' italic')]
+			elif fontname.endswith('bold'):
+				fontStyle = 'bold'
+				fontname = fontname[:-len(' bold')]
+			else:
+				fontStyle = 'plain'
+			NodeLabel.attrib['fontFamily'] = fontname
+			NodeLabel.attrib['fontStyle'] = fontStyle
+			NodeLabel.attrib['textColor'] = check_color(node.get('fontcolor'))
+		return NodeLabel
+	return None
+
+# --------------------------------
 
 def pydot_from_graphml(graph_str):
 	'graph_str - filename or xml(graphml) string'
@@ -161,16 +256,8 @@ def pydot_from_graphml(graph_str):
 
 						info_node = next(iter(data_node))#data_node.find("y:GenericNode",NS) or data_node.find("y:ShapeNode",NS)
 
-						# Geometry information
-						node_geom = info_node.find("y:Geometry",NS)
-						if node_geom is not None:
-							# print(f"{node_geom.tag = }, {node_geom.get("x") =} {node_geom.get("y") =} ")
-							node_init_dict['pos'] = node_geom.get('x')+','+str(-float(node_geom.get('y')))+'!'
-							#geometry_vars = ["height", "width", "x", "y"]
-
-						node_label = info_node.find("y:NodeLabel",NS)
-						if node_label is not None:
-							node_init_dict["label"] = node_label.text
+						read_geom(node_init_dict, info_node)
+						read_label(node_init_dict,info_node.find("y:NodeLabel",NS))
 
 							# TODO: PORT REST OF NODELABEL
 
@@ -182,17 +269,7 @@ def pydot_from_graphml(graph_str):
 							#node_init_dict["transparent"] = fill.get("transparent")
 
 						# <Shape type="rectangle" />
-						if info_node.tag.endswith('ShapeNode'):
-							shape_sub = info_node.find("y:Shape",NS)
-							shape_type = 'ShapeNode'
-							if shape_sub is not None:
-								shape_type = shape_sub.get("type",'')
-						elif info_node.tag.endswith('GenericNode'):
-							shape_type = info_node.get("configuration",'GenericNode')
-						else:
-							print(f"unknown node tag: {info_node.tag.split('}')[-1] if '}' in info_node.tag else info_node.tag}",file=sys.stderr)
-							shape_type = 'rectangle'
-						node_init_dict["shape"] = shape_graphml2dot(shape_type)
+						read_shape(node_init_dict,info_node)
 
 						# <BorderStyle color="#000000" type="line" width="1.0" />
 						#border_style = info_node.find("y:BorderStyle",NS)
@@ -254,9 +331,7 @@ def pydot_from_graphml(graph_str):
 					#	edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source", None)
 					#	edge_init_dict["arrowhead"] = arrows_node.attrib.get("target", None)
 
-					edgelabel_node = polylineedge.find("y:EdgeLabel",NS) # todo: many labels
-					if edgelabel_node is not None:
-						edge_init_dict["label"] = edgelabel_node.text
+					read_label(edge_init_dict, polylineedge.find("y:EdgeLabel",NS))
 
 				#else:
 				#	info = data_node.text
@@ -352,17 +427,10 @@ def pydot_to_graphml(G,filename=None):
 
 		xml_node = ET.Element("node", id=node.get_name())
 		data = ET.SubElement(xml_node, "data", key="data_node")
-		shape_type = shape_dot2graphml(node.get('shape'))
-		if shape_type.startswith('com.yworks'):
-			shape = ET.SubElement(data, "y:GenericNode", configuration=shape_type)
-		else:
-			shape = ET.SubElement(data, "y:ShapeNode")
-			ET.SubElement(shape, 'y:Shape', type=shape_type)
+		shape = write_shape(data,node)
 
-		if pos:=node.get("pos"):
-			x,y = pos.replace('"','').replace('!','').split(',')
-			ET.SubElement(shape, "y:Geometry", x=x, y=str(-float(y)))
 		# <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
+		write_geom(shape,node)
 
 		if (color:=node.get("fillcolor")) and node.get('style') and 'filled' in node.get('style'):
 			ET.SubElement(shape, "y:Fill", color=check_color(color))
@@ -378,10 +446,7 @@ def pydot_to_graphml(G,filename=None):
 
 		#for label in self.list_of_labels:
 		#	label.addSubElement(shape)
-		if label_text:=node.get("label"):
-			NodeLabel = ET.SubElement(shape, "y:NodeLabel")
-			NodeLabel.text = label_text
-
+		write_label(shape,node,"y:NodeLabel")
 
 		#ET.SubElement(shape, "y:Shape", type=self.shape)
 
@@ -417,10 +482,6 @@ def pydot_to_graphml(G,filename=None):
 	#	graph.append(group.convert_to_xml())
 
 	for edge in G.get_edges():
-		#print("Откуда -> Куда:", edge.get_source(), "->", edge.get_destination())
-		#print("Атрибуты:", edge.get_attributes())
-		#print("label =", edge.get("label"))
-		#graph.append(edge.convert_to_xml())
 		#"""Converting edge object to xml object"""
 
 		xml_edge = ET.Element(
@@ -440,9 +501,7 @@ def pydot_to_graphml(G,filename=None):
 
 		#for label in self.list_of_labels:
 		#	label.addSubElement(pl)
-		if label_text:=edge.get("label"):
-			EdgeLabel = ET.SubElement(pl, "y:EdgeLabel")
-			EdgeLabel.text = label_text
+		write_label(pl,edge,"y:EdgeLabel")
 
 		#if self.url:
 		#	url_edge = ET.SubElement(xml_edge, "data", key="url_edge")
@@ -459,10 +518,101 @@ def pydot_to_graphml(G,filename=None):
 
 		graph.append(xml_edge)
 
+	ET.indent(graphml, space="  ", level=0)
 	if filename is not None:
 		tree = ET.ElementTree(graphml)
 		with open(filename, "w", encoding="utf-8") as f:
 		    tree.write(f, encoding="unicode", xml_declaration=True)
 	else:
-		ET.indent(graphml, space="  ", level=0)
 		return ET.tostring(graphml, encoding="unicode")
+
+
+SHAPE_DOT2PYVIS = {
+    # простые фигуры
+    "ellipse": "ellipse",
+    "circle": "circle",
+    "box": "box",
+    "rect": "box",
+    "rectangle": "box",
+    "square": "square",
+
+    # многоугольники
+    "diamond": "diamond",
+    "triangle": "triangle",
+    "invtriangle": "triangleDown",
+    "pentagon": "star",       # нет pentagon, ближе всего star
+    "hexagon": "hexagon",
+
+    # текст и особые
+    "plaintext": "text",
+    "point": "dot",
+    "none": "text",
+
+    # экзотика Graphviz (у PyVis аналога нет → fallback "ellipse")
+    "star": "star",   # в dot это полигон, в pyvis своя фигура
+    "doublecircle": "circle",
+}
+
+def pyvis_from_nxdot(G, verbose=False): # from nx with dot attributes
+	net = Network(notebook=True, height="700px", width="100%", directed=G.is_directed())
+	# 4. Добавляем узлы
+	for n, attrs in G.nodes(data=True):
+		node_params = {}
+		node_params['label'] = attrs.get("label", str(n))
+		node_params['color'] = attrs.get("fillcolor", attrs.get("color", "#97C2FC"))  # дефолтный синий pyvis
+		node_params['shape'] = SHAPE_DOT2PYVIS.get(attrs.get("shape", "box"),'box')
+		x = y = None
+		pos = attrs.get("pos")
+		if pos:
+			try:
+				# "x,y!" → x и y
+				x_str, y_str = pos.rstrip("!").split(",")
+				x = float(x_str)
+				y = -float(y_str)  # pyvis ось Y противоположна Graphviz
+			except:
+				pass
+		node_params['x'] = x*DPI/PPI
+		node_params['y'] = y*DPI/PPI
+		node_params['physics']=False if x is not None else True
+
+		width = attrs.get('width')
+		node_params['widthConstraint'] = float(width) * DPI if width else None
+		height = attrs.get('height')
+		node_params['heightConstraint'] = float(height) * DPI if height else None
+
+		# --- шрифт ---
+		def font_dict(attrs):
+			font_size = float(default(attrs.get('fontsize'),14))
+			font_color = attrs.get("fontcolor")
+			font_face = attrs.get("fontname")
+			font_dict = {}
+			if font_size:  font_dict["size"] = int(font_size*DPI/PPI)
+			if font_color: font_dict["color"] = font_color
+			if font_face:  font_dict["face"] = font_face
+			return font_dict
+		node_params['font'] = font_dict(attrs)
+
+		if verbose:
+			print('add_node',n, node_params)
+		net.add_node(n, **node_params)
+
+	# 5. Добавляем рёбра
+	for u, v, key, attrs in G.edges(keys=True, data=True):
+		label = attrs.get("label", "")
+		color = attrs.get("color", "#848484")
+		net.add_edge(u, v, label=label, color=color, font=font_dict(attrs))
+	return net
+
+def asdfasdf(G):  # from nx with dot attributes
+    # --- рёбра ---
+    for u, v, key, attrs in G.edges(keys=True, data=True):
+        label = attrs.get("label", "")
+        color = attrs.get("color", "#848484")
+        style = attrs.get("style", "")
+
+        dashes = True if "dashed" in style else False
+        width = 2 if "bold" in style else 1
+
+        net.add_edge(u, v, label=label, color=color, dashes=dashes, width=width)
+
+    return net

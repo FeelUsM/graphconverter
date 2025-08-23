@@ -1,0 +1,19 @@
+digraph G {
+n0 [pos="180.0,-90.0!", height=0.31608452399571735, width=0.21733379364013672, label=1, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n1 [pos="360.0,-135.0!", height=0.31608452399571735, width=1.5014681816101074, label=wwwwiiiiiiidddddeeeee, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n2 [pos="495.0,-135.0!", height=0.8268380959828695, width=0.2159587542215983, label="t\na\nl\nl", fontsize=9.0, fontname=Dialog, fontcolor="#FF0000", fillcolor="#FFCC00", style=filled, shape=box];
+n3 [pos="202.5,-202.5!", height=0.9970892866452535, width=0.7220878601074219, label="b             i\n\n\n\ng             g", fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n4 [pos="495.0,-270.0!", height=1.8483317693074544, width=0.5758330027262369, label=f, fontsize=90.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n5 [pos="450.0,-180.0!", height=0.3125, width=0.3125, label=6, fontsize=9.0, fontname="Dialog bold", fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n6 [pos="540.0,-180.0!", height=0.3125, width=0.3125, label=7, fontsize=9.0, fontname="Dialog italic", fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n7 [pos="450.0,-360.0!", height=0.3125, width=0.3125, label=8, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n8 [pos="540.0,-360.0!", height=0.3125, width=0.3125, label=9, fontsize=9.0, fontname="Dialog bold italic", fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n9 [pos="157.5,-157.5!", height=0.3125, width=0.3125, label=10, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n10 [pos="247.5,-157.5!", height=0.3125, width=0.3125, label=11, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n11 [pos="247.5,-247.5!", height=0.3125, width=0.3125, label=12, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n12 [pos="157.5,-247.5!", height=0.3125, width=0.3125, label=13, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n13 [pos="247.5,-360.0!", height=1.3229166666666667, width=2.7916666666666665, label=14, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n14 [pos="337.5,-45.0!", height=0.3125, width=0.3125, label=wwwwiiiiiiidddddeeeee, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n0 -> n1 [id=e0, color="#000000", label=asdf, fontsize=9.0, fontname=Dialog, fontcolor="#000000"];
+n3 -> n4 [id=e1, color="#000000", label=qwer, fontsize=45.0, fontname=Dialog, fontcolor="#000000"];
+}

@@ -1,10 +1,10 @@
 digraph "G" {
-n0 [pos="375.0,-195.0!", label=1, fillcolor="#FFCC00", style=filled, shape=box];
-n1 [pos="525.0,-195.0!", label=2, fillcolor="#FFCC00", style=filled, shape=box];
-n2 [pos="525.0,-315.0!", label=3, fillcolor="#FFCC00", style=filled, shape=box];
-n3 [pos="375.0,-315.0!", label=4, fillcolor="#FFCC00", style=filled, shape=box];
-n0 -> n1 [key=0, id=e0, color="#000000", label=L1];
-n0 -> n2 [key=0, id=e1, color="#000000", label=L3];
-n0 -> n2 [key=1, id=e2, color="#000000", label=L2];
-n0 -> n0 [key=0, id=e3, color="#000000", label=L0];
+n0 [pos="292.5,-157.5!", height=0.3125, width=0.3125, label=1, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n1 [pos="405.0,-157.5!", height=0.3125, width=0.3125, label=2, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n2 [pos="405.0,-247.5!", height=0.3125, width=0.3125, label=3, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n3 [pos="292.5,-247.5!", height=0.3125, width=0.3125, label=4, fontsize=9.0, fontname=Dialog, fontcolor="#000000", fillcolor="#FFCC00", style=filled, shape=box];
+n0 -> n1 [key=0, id=e0, color="#000000", label=L1, fontsize=9.0, fontname=Dialog, fontcolor="#000000"];
+n0 -> n2 [key=0, id=e1, color="#000000", label=L3, fontsize=9.0, fontname=Dialog, fontcolor="#000000"];
+n0 -> n2 [key=1, id=e2, color="#000000", label=L2, fontsize=9.0, fontname=Dialog, fontcolor="#000000"];
+n0 -> n0 [key=0, id=e3, color="#000000", label=L0, fontsize=9.0, fontname=Dialog, fontcolor="#000000"];
 }
